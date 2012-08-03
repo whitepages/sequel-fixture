@@ -6,4 +6,5 @@ gemspec
 group :cucumber do
   gem "cucumber"
   gem "sqlite3"
+  gem "pry"
 end

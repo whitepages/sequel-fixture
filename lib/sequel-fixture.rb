@@ -20,17 +20,17 @@ module Sequel
     # Initializes the fixture handler
     # Accepts optionally a symbol as a reference to the fixture
     # and a Sequel::Database connection
-    def initialize fixture = nil, connection = nil
+    def initialize fixture = nil, connection = nil, option_push = true
       load fixture if fixture
       
-      if connection
-        @connection = connection
-        push
-      end
+      @connection = connection if connection
+      push if fixture && connection && option_push
     end
     
     # Loads the fixture files into this instance
     def load fixture
+      raise LoadingFixtureIllegal, "A check has already been made, loading a different fixture is illegal" if @checked
+      
       Fast.dir("#{fixtures_path}/#{fixture}").files.to.symbols.each do |file|
         @data ||= {}
         @data[file] = SymbolMatrix.new "#{fixtures_path}/#{fixture}/#{file}.yaml"
@@ -55,10 +55,15 @@ module Sequel
     
     # Assures that the tables are empty before proceeding
     def check
+      return @checked if @checked # If already checked, it's alright
+
+      raise MissingFixtureError, "No fixture has been loaded, nothing to check" unless @data
+      raise MissingConnectionError, "No connection has been provided, impossible to check" unless @connection
+      
       @data.each_key do |table|
         raise TablesNotEmptyError, "The table '#{table}' is not empty, all tables should be empty prior to testing" if @connection[table].count != 0
       end
-      return true
+      return @checked = true
     end
     
     # Inserts the fixture data into the corresponding tables
@@ -67,7 +72,12 @@ module Sequel
       
       @data.each do |table, matrix|
         matrix.each do |element, values|
-          @connection[table].insert values.to_hash
+          begin
+            @connection[table].insert simplify values.to_hash
+          rescue MissingProcessedValueError => m
+            rollback
+            raise MissingProcessedValueError, "In record '#{element}' to be inserted into '#{table}', the processed value of field '#{m.field}' is missing, aborting"
+          end
         end
       end
     end
@@ -85,9 +95,45 @@ module Sequel
       end
     end
     
-    attr_accessor :connection    
+    attr_reader :connection    
+    
+    # Sets the connection. Raises an ChangingConnectionIllegal exception if this fixture has already been checked
+    def connection= the_connection
+      raise ChangingConnectionIllegal, "A check has already been performed, changing the connection now is illegal" if @checked
+      @connection = the_connection
+    end
+    
+    attr_reader :data
+    
+    # Simplifies the hash in order to insert it into the database
+    # (Note: I'm well aware that this functionality belongs in a dependency)
+    def simplify the_hash
+      the_returned_hash = {}
+      the_hash.each do |key, value|
+        if value.is_a? Hash
+          unless value.has_key? :processed
+            raise MissingProcessedValueError.new "The processed value to insert into the db is missing from the field '#{key}', aborting", key 
+          end
+          the_returned_hash[key] = value[:processed]
+        else
+          the_returned_hash[key] = value
+        end
+      end
+      return the_returned_hash
+    end
 
     class TablesNotEmptyError < StandardError; end
     class RollbackIllegalError < StandardError; end
+    class MissingFixtureError < StandardError; end
+    class MissingConnectionError < StandardError; end
+    class LoadingFixtureIllegal < StandardError; end
+    class ChangingConnectionIllegal < StandardError; end
+    class MissingProcessedValueError < StandardError
+      attr_accessor :field
+      def initialize message, field = nil
+        @field = field
+        super message
+      end
+    end
   end
 end

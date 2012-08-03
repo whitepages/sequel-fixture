@@ -4,9 +4,9 @@ require File.expand_path('../lib/sequel-fixture/version', __FILE__)
 Gem::Specification.new do |gem|
   gem.authors       = ["Xavier Via"]
   gem.email         = ["xavier.via.canel@gmail.com"]
-  gem.description   = %q{TODO: Write a gem description}
-  gem.summary       = %q{TODO: Write a gem summary}
-  gem.homepage      = ""
+  gem.description   = %q{Flexible fixtures for the Sequel Gem inspired in Rails 2 fixtures}
+  gem.summary       = %q{Flexible fixtures for the Sequel Gem inspired in Rails 2 fixtures}
+  gem.homepage      = "http://github.com/Fetcher/sequel-fixture"
 
   gem.add_dependency "sequel"         # Stating the obvious
   gem.add_dependency "symbolmatrix"   # Because they have to be easy to use, dammit!

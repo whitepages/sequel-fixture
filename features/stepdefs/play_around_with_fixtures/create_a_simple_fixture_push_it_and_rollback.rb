@@ -60,3 +60,7 @@ end
 When /^I rollback$/ do
   @fixture.rollback
 end
+
+Then /^I should see (\d+) records? in (\w+)$/ do |amount, table|
+  @DB[table.to_sym].count.should == amount.to_i
+end

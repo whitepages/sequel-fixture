@@ -36,15 +36,35 @@ Scenario: Create a simple fixture, push it into a sqlite and rollback
   And I should see 0 records in aliens
   And I should see 0 records in visits
 
-#Scenario: The users table has a password field
-#  Given a table users with String:name, String:password
-#  And a file "test/fixtures/password/users.yaml" with: 
-#    """
-#    john:
-#      name: John Wayne
-#      password:
-#        raw: secret
-#        processed: 5bfb52c459cdb07218c176b5ddec9b6215bd5b76
-#    """
-#  When I load the password fixture
-#  Then I should see 1 record in users with name "John Wayne" and password "5bfb52c459cdb07218c176b5ddec9b6215bd5b76"    
+Scenario: The users table has a password field
+  Given a table users with String:name, String:password
+  And a file "test/fixtures/password/users.yaml" with: 
+    """
+    john:
+      name: John Wayne
+      password:
+        raw: secret
+        processed: 5bfb52c459cdb07218c176b5ddec9b6215bd5b76
+    """
+  When I load the password fixture
+  Then I should see 1 record in users with name "John Wayne" and password "5bfb52c459cdb07218c176b5ddec9b6215bd5b76"    
+  When I rollback
+  Then I should see 0 records in users
+
+Scenario: Misconfigured password field
+  Given a table users with String:password
+  And a file "test/fixtures/misconfigured/users.yaml" with:
+    """
+    good_entry:
+      password:
+        raw: secret
+        processed: 96bdg756n5sgf9gfs==
+    wrong_entry:
+      password:
+        missing: The field
+    """
+  Then the loading of misconfigured fixture should fail
+  And I should see that the table was "users"
+  And I should see that the field was "password"
+  And I should see that the entry was "wrong_entry"
+  And I should see 0 records in users

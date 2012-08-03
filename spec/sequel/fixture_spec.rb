@@ -1,5 +1,6 @@
 require "sequel-fixture"
 require "fast"
+require "pry"
 
 describe Sequel::Fixture do
   describe ".path" do
@@ -24,6 +25,23 @@ describe Sequel::Fixture do
         Sequel::Fixture.new :test, Sequel.connect
       end
     end    
+    
+    context "a database is provided but no fixture" do
+      it "should not call push" do
+        database = double 'database'
+        Sequel::Fixture.any_instance.should_not_receive :push
+        Sequel::Fixture.new nil, database
+      end
+    end
+    
+    context "a database connection and a valid fixture are passed but a false flag is passed at the end" do
+      it "should not push" do
+        database = double 'database'
+        Sequel::Fixture.any_instance.stub :load
+        Sequel::Fixture.any_instance.should_not_receive :push
+        Sequel::Fixture.new :test, database, false
+      end
+    end
   end
 
   describe "#load" do
@@ -41,6 +59,28 @@ describe Sequel::Fixture do
         fix.load :test
       end
             
+      after do
+        Fast.dir.remove! :test
+      end
+    end
+    
+    context "the check has been performed and I attempt to load another fixture" do
+      before do
+        Fast.file.write "test/fixtures/test/users.yaml", "john: { name: John Doe }"
+        Fast.file.write "test/fixtures/another/users.yaml", "john: { name: John Doe }"
+      end
+
+      it "should fail" do
+        Sequel::Fixture.any_instance.stub :push
+        database = double 'database'
+        database.stub(:[]).and_return double(:count => 0 )
+        fix = Sequel::Fixture.new :test, database
+        fix.check
+        expect { fix.load :another
+        }.to raise_error Sequel::Fixture::LoadingFixtureIllegal, 
+          "A check has already been made, loading a different fixture is illegal"
+      end
+      
       after do
         Fast.dir.remove! :test
       end
@@ -169,24 +209,64 @@ describe Sequel::Fixture do
     end
     
     context "the check has been done and it passed before" do
-      before do
+      it "should return true even if now tables don't pass" do
         Sequel::Fixture.any_instance.stub :push
         
-        @counter = stub :count => 0
-        @database = stub :[] => @counter
+        @counter = double 'counter'
+        @counter.stub :count do
+          @amount ||= 0
+          @amount += 1
+          0 unless @amount > 5
+        end
+        
+        @database = double 'database'
+        @database.stub(:[]).and_return @counter
+
         @fix = Sequel::Fixture.new nil, @database
         def @fix.stub_data
           @data = { :users => nil, :tables => nil, :actions => nil, :schemas => nil }
         end
         @fix.stub_data
-        
         @fix.check.should === true
+        @fix.check.should === true  # This looks confusing: let explain. The #count method as defined for the mock
+                                    # runs 4 times in the first check. In the second check, it runs 4 times again.
+                                    # After time 6 it returns a large amount, making the check fail.
+                                    # Of course, the fourth time is never reached since the second check is skipped
+      end
+    end
+    
+    context "no fixture has been loaded" do
+      it "should fail with a missing fixture exception" do
+        fix = Sequel::Fixture.new
+        expect { fix.check
+        }.to raise_error Sequel::Fixture::MissingFixtureError,
+          "No fixture has been loaded, nothing to check"
+      end
+    end
+    
+    context "a valid fixture has been loaded but no connection has been provided" do
+      before do
+        Fast.file.write "test/fixtures/test/users.yaml", "jane { name: Jane Doe }"
+      end
+      it "should fail with a missing database connection exception" do
+        fix = Sequel::Fixture.new :test
+        expect { fix.check
+        }.to raise_error Sequel::Fixture::MissingConnectionError, 
+          "No connection has been provided, impossible to check"
       end
       
-      it "should return true even if now tables don't pass" do
-        @counter = stub :count => 4
-        
-        @fix.check.should === true
+      after do
+        Fast.dir.remove! :test
+      end
+    end
+    
+    context "a database is provided but no fixture" do
+      it "should fail with a missing fixture exception" do
+        database = double 'database'
+        fix = Sequel::Fixture.new nil, database
+        expect {fix.check 
+        }.to raise_error Sequel::Fixture::MissingFixtureError,
+          "No fixture has been loaded, nothing to check"
       end
     end
   end
@@ -200,12 +280,58 @@ describe Sequel::Fixture do
     end
   end
   
-  describe "#connnection=" do
+  describe "#connection=" do
     it "sets the connection" do
       fix = Sequel::Fixture.new
       connection = stub
       fix.connection = connection
       fix.connection.should === connection
+    end
+    
+    context "a check has been performed and I attempt to change the connection" do
+      before do
+        Fast.file.write "test/fixtures/test/users.yaml", "jane { name: Secret }"
+      end
+      
+      it "should fail" do
+        database = double 'database'
+        database.stub(:[]).and_return mock(:count => 0)
+        Sequel::Fixture.any_instance.stub :push
+        fix = Sequel::Fixture.new :test, database
+        fix.check
+        expect { fix.connection = double 'database'
+        }.to raise_error Sequel::Fixture::ChangingConnectionIllegal, 
+          "A check has already been performed, changing the connection now is illegal"
+      end
+      
+      after do
+        Fast.dir.remove! :test
+      end
+    end
+  end
+  
+  describe "#data" do
+    context "a fixture has been loaded" do
+      before do 
+        Fast.file.write "test/fixtures/test/users.yaml", "jane { name: Jessica Dore }"
+      end
+      
+      it "should return the fixture data" do
+        fix = Sequel::Fixture.new :test
+        fix.data.should have_key :users
+        fix.data[:users].should be_a SymbolMatrix
+      end
+      
+      after do
+        Fast.dir.remove! :test
+      end
+    end
+    
+    context "no fixture has been loaded" do
+      it "should return nil" do
+        fix = Sequel::Fixture.new 
+        fix.data.should be_nil
+      end
     end
   end
   
@@ -242,6 +368,103 @@ describe Sequel::Fixture do
         Fast.dir.remove! :test
       end
     end    
+    
+    context "a fixture with a field with a <raw> and a <processed> alternative" do
+      before do
+        Fast.file.write "test/fixtures/test/users.yaml", "user: { password: { raw: secret, processed: 35ferwt352 } }"
+      end
+      
+      it "should insert the <processed> alternative" do
+        database = double 'database'
+        insertable = double 'table'
+        insertable.stub :count => 0
+        insertable.should_receive(:insert).with :password => '35ferwt352'
+        database.stub(:[]).and_return insertable
+        fix = Sequel::Fixture.new :test, database, false
+        fix.push
+      end
+      
+      after do
+        Fast.dir.remove! :test
+      end
+    end
+    
+    context "a fixture with a field with alternatives yet missing the <processed> one" do
+      before do
+        Fast.file.write "test/fixtures/test/users.yaml", "hey: { pass: { raw: There } }"
+      end
+      
+      it "should fail" do
+        database = double 'database', :[] => stub( 'table', :count => 0, :truncate => nil  )
+        fix = Sequel::Fixture.new :test, database, false
+        expect { fix.push
+        }.to raise_error Sequel::Fixture::MissingProcessedValueError, 
+          "In record 'hey' to be inserted into 'users', the processed value of field 'pass' is missing, aborting"
+      end
+      
+      
+      it "should call the rollback" do
+        database = double 'database', :[] => stub( 'table', :count => 0, :truncate => nil )
+        fix = Sequel::Fixture.new :test, database, false
+        fix.should_receive :rollback
+        expect { fix.push
+        }.to raise_error Sequel::Fixture::MissingProcessedValueError
+      end      
+      
+      after do
+        Fast.dir.remove! :test
+      end
+    end
+  end
+  
+  # This should go in a dependency, pending refactoring TODO
+  describe "#simplify" do
+    context "when receiving a multidimensional hash containing a field with raw and processed" do
+      it "should convert it in a simple hash using the processed value as replacement" do
+        base_hash = {
+          :name => "Jane",
+          :band => "Witherspoons",
+          :pass => {
+            :raw => "secret",
+            :processed => "53oih7fhjdgj3f8="
+          },
+          :email => {
+            :raw => "Jane@gmail.com ",
+            :processed => "jane@gmail.com"
+          }
+        }
+        
+        fix = Sequel::Fixture.new
+        simplified = fix.simplify base_hash
+        simplified.should == {
+          :name => "Jane",
+          :band => "Witherspoons",
+          :pass => "53oih7fhjdgj3f8=",
+          :email => "jane@gmail.com"
+        }
+      end
+    end
+    
+    context "the multidimensional array is missing the processed part of the field" do
+      it "should raise an exception" do
+        base_hash = {
+          :name => "Jane",
+          :pass => {
+            :raw => "secret",
+            :not_processed => "53oih7fhjdgj3f8="
+          },
+          :email => {
+            :raw => "Jane@gmail.com ",
+            :processed => "jane@gmail.com"
+          }
+        }
+        
+        fix = Sequel::Fixture.new
+        expect { fix.simplify base_hash
+        }.to raise_error Sequel::Fixture::MissingProcessedValueError, 
+          "The processed value to insert into the db is missing from the field 'pass', aborting"
+      end
+    end
   end
   
   describe "#rollback" do
