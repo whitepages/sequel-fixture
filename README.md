@@ -30,6 +30,9 @@ long_time:
   sender_id: 2
   receiver_id: 1
   text: John! Long time indeed. How are you doing?
+```
+
+and the ruby script
 
 ```ruby
 # script.rb
@@ -58,6 +61,8 @@ fixture.push                # Inserts the fixture in the database
 fixture.rollback            # Don't forget to rollback
 
 ```
+
+...naturally, `sequel-fixture` makes a lot more sense within some testing framework.
 
 > **Note**: As of version 0.0.1, the `test/fixtures` path for fixtures is not configurable. Will solve soon.
 
