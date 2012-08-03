@@ -1,6 +1,5 @@
 require "sequel-fixture"
 require "fast"
-require "pry"
 
 describe Sequel::Fixture do
   describe ".path" do
