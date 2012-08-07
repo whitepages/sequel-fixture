@@ -68,3 +68,17 @@ Scenario: Misconfigured password field
   And I should see that the field was "password"
   And I should see that the entry was "wrong_entry"
   And I should see 0 records in users
+
+Scenario: I save the done fixtures so to perform the rollbacks later
+  Given a table users with String:name, String:last_name
+  And a file "test/fixtures/password/users.yaml" with: 
+    """
+    john:
+      name: John 
+      last_name: Wayne
+    """
+  And I load the password fixture
+  Then I should see 1 record in users with name "John" and last_name "Wayne" 
+  When I stash the fixture as done   
+  And I rollback the stashed fixtures
+  Then I should see 0 records in users
