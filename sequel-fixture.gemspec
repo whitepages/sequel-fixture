@@ -10,9 +10,9 @@ Gem::Specification.new do |gem|
 
   gem.add_dependency "sequel"         # Stating the obvious
   gem.add_dependency "symbolmatrix"   # Because they have to be easy to use, dammit!
+  gem.add_dependency "fast"           # Fast was needed. This is a testing gem, there's no problem with extra load
 
   gem.add_development_dependency "rspec"
-  gem.add_development_dependency "fast"
 
   gem.files         = `git ls-files`.split($\)
   gem.executables   = gem.files.grep(%r{^bin/}).map{ |f| File.basename(f) }

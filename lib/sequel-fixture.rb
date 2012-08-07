@@ -1,5 +1,6 @@
 require "sequel"
 require "symbolmatrix"
+require "fast"
 
 require "sequel-fixture/version"
 
