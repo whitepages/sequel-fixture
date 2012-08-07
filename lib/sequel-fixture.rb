@@ -54,6 +54,11 @@ module Sequel
       return super
     end
     
+    # Forces the check to pass. Dangerous!
+    def force_checked!
+      @checked = true
+    end
+    
     # Assures that the tables are empty before proceeding
     def check
       return @checked if @checked # If already checked, it's alright

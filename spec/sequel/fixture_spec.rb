@@ -86,6 +86,18 @@ describe Sequel::Fixture do
     end
   end
   
+  describe "#force_checked!" do
+    it "check should return true and should not call [] in the passed database" do
+      database = stub 'database'
+      database.should_not_receive :[]
+      
+      Sequel::Fixture.any_instance.stub :load
+      fix = Sequel::Fixture.new :anything, database, false
+      fix.force_checked!.should === true
+      fix.check.should === true
+    end
+  end
+  
   describe "#[]" do
     context "a valid fixture has been loaded" do
       before do
