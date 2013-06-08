@@ -12,12 +12,12 @@ Usage
 Each fixture file defines the schema and data for a single table which
 is named after the file name.
 
-Schema definition is optional, but inserts will obviously fail if the tables do
-not exists.
+Schema definition is optional, but note that db inserts will fail if the tables do
+not exist.
 
 Assuming you have a fixture for the table users with:
 ```yaml
-# test/fixtures/simple/users.yaml
+# fixtures/simple/users.yaml
 schema:
   - name: name
     type: string
@@ -37,7 +37,7 @@ data:
 
 and for messages:
 ```yaml
-# test/fixtures/simple/messages.yaml
+# fixtures/simple/messages.yaml
 schema:
   - name: sender_id
     type: integer
