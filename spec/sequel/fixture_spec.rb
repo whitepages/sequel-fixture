@@ -2,10 +2,15 @@ require "sequel-fixture"
 require "fast"
 
 describe Sequel::Fixture do
-  describe ".path" do
+  describe ".path" do    
     it "should return 'test/fixtures'" do
       Sequel::Fixture.path.should == "test/fixtures"
     end
+
+    it "should be configurable" do
+      Sequel::Fixture.path = File.join(File.dirname(__FILE__), "fixtures")
+      Sequel::Fixture.path.should == File.join(File.dirname(__FILE__), "fixtures")
+    end    
   end
 
   describe ".new" do
@@ -46,6 +51,7 @@ describe Sequel::Fixture do
   describe "#load" do
     context "there is a valid fixture folder setup" do
       before do
+        Sequel::Fixture.path = "test/fixtures"
         Fast.file! "test/fixtures/test/users.yaml"
         Fast.file! "test/fixtures/test/actions.yaml"
       end
@@ -65,8 +71,7 @@ describe Sequel::Fixture do
     
     context "the check has been performed and I attempt to load another fixture" do
       before do
-        Fast.file.write "test/fixtures/test/users.yaml", "john: { name: John Doe }"
-        Fast.file.write "test/fixtures/another/users.yaml", "john: { name: John Doe }"
+        Sequel::Fixture.path = File.join(File.dirname(__FILE__), "fixtures")
       end
 
       it "should fail" do
@@ -101,20 +106,19 @@ describe Sequel::Fixture do
   describe "#[]" do
     context "a valid fixture has been loaded" do
       before do
-        Fast.file.write "test/fixtures/test/users.yaml", "john: { name: John, last_name: Wayne }"
-        Fast.file.write "test/fixtures/test/actions.yaml", "walk: { user_id: 1, action: Walks }"
+        Sequel::Fixture.path = File.join(File.dirname(__FILE__), "fixtures")
+        
         @fix = Sequel::Fixture.new
         @fix.stub :check
         @fix.load :test
       end
       
       context "a table key is passed" do
-        it "should return the SymbolMatrix containing the same info as in the matching YAML file" do
-          @fix[:users].should be_a SymbolMatrix
-          @fix[:users].john.name.should == "John"
-          @fix[:users].john.last_name.should == "Wayne"
-          
-          @fix[:actions].walk.action.should == "Walks"
+        it "should return the Fixture::Table containing the same info as in the matching YAML file" do
+          @fix[:users].should be_a Sequel::Fixture::Table
+          @fix[:users][0].name.should == "John Doe"
+          @fix[:users][0].last_name.should == "Wayne"          
+          @fix[:actions][0].action.should == "Walks"
         end
       end
       
@@ -128,19 +132,17 @@ describe Sequel::Fixture do
     context "a valid fixture has been loaded" do
       context "a table key is passed" do
         before do
-          Fast.file.write "test/fixtures/test/users.yaml", "john: { name: John, last_name: Wayne }"
-          Fast.file.write "test/fixtures/test/actions.yaml", "walk: { user_id: 1, action: Walks }"
+          Sequel::Fixture.path = File.join(File.dirname(__FILE__), "fixtures")
           @fix = Sequel::Fixture.new
           @fix.stub :check
           @fix.load :test
         end
       
         it "should return the SymbolMatrix containing the same info as in the matching YAML file" do
-          @fix.users.should be_a SymbolMatrix
-          @fix.users.john.name.should == "John"
-          @fix.users.john.last_name.should == "Wayne"
-          
-          @fix.actions.walk.action.should == "Walks"          
+          @fix.users.should be_a Sequel::Fixture::Table
+          @fix.users[0].name.should == "John Doe"
+          @fix.users[0].last_name.should == "Wayne"
+          @fix.actions[0].action.should == "Walks"          
         end
 
         after do
@@ -197,9 +199,8 @@ describe Sequel::Fixture do
       end
       fix.stub_data
       
-      expect { fix.check
-      }.to raise_error Sequel::Fixture::TablesNotEmptyError, 
-        "The table 'users' is not empty, all tables should be empty prior to testing"
+      expect { fix.check }.to raise_error Sequel::Fixture::TablesNotEmptyError, 
+      "Table 'users' is not empty, tables must be empty prior to testing"
     end
     
     it "should return true if all tables count equals 0" do
@@ -312,7 +313,7 @@ describe Sequel::Fixture do
         fix.check
         expect { fix.connection = double 'database'
         }.to raise_error Sequel::Fixture::ChangingConnectionIllegal, 
-          "A check has already been performed, changing the connection now is illegal"
+          "Illegal to change connection after check has already been performed"
       end
       
       after do
@@ -323,14 +324,14 @@ describe Sequel::Fixture do
   
   describe "#data" do
     context "a fixture has been loaded" do
-      before do 
-        Fast.file.write "test/fixtures/test/users.yaml", "jane { name: Jessica Dore }"
+      before do
+        Sequel::Fixture.path = File.join(File.dirname(__FILE__), "fixtures")
       end
       
       it "should return the fixture data" do
         fix = Sequel::Fixture.new :test
         fix.data.should have_key :users
-        fix.data[:users].should be_a SymbolMatrix
+        fix.data[:users].should be_a Sequel::Fixture::Table
       end
       
       after do
@@ -341,7 +342,7 @@ describe Sequel::Fixture do
     context "no fixture has been loaded" do
       it "should return nil" do
         fix = Sequel::Fixture.new 
-        fix.data.should be_nil
+        fix.data.should be {}
       end
     end
   end
@@ -359,8 +360,8 @@ describe Sequel::Fixture do
 
     context "a valid fixture and a database connection are provided" do
       before do
-        Fast.file.write "test/fixtures/test/users.yaml", "john: { name: John, last_name: Wayne }"
-        Fast.file.write "test/fixtures/test/actions.yaml", "walk: { user_id: 1, action: Walks }"
+        Sequel::Fixture.path = File.join(File.dirname(__FILE__), "fixtures")
+        
         @table    = stub
         @database = stub :[] => @table
         @fix = Sequel::Fixture.new
@@ -370,8 +371,8 @@ describe Sequel::Fixture do
     
       it "should attempt to insert the data into the database" do
         @table.stub :count => 0
-        @table.should_receive(:insert).with :name => "John", :last_name => "Wayne"
-        @table.should_receive(:insert).with :user_id => 1, :action => "Walks"
+        @table.should_receive(:insert).with "name" => "John Doe", "last_name" => "Wayne"
+        @table.should_receive(:insert).with "user_id" => 1, "action" => "Walks"
         @fix.push
       end
       
@@ -382,16 +383,18 @@ describe Sequel::Fixture do
     
     context "a fixture with a field with a <raw> and a <processed> alternative" do
       before do
-        Fast.file.write "test/fixtures/test/users.yaml", "user: { password: { raw: secret, processed: 35ferwt352 } }"
+        Sequel::Fixture.path = File.join(File.dirname(__FILE__), "fixtures")        
       end
       
       it "should insert the <processed> alternative" do
         database = double 'database'
         insertable = double 'table'
         insertable.stub :count => 0
-        insertable.should_receive(:insert).with :password => '35ferwt352'
+        insertable.should_receive(:insert).with "password" => '35ferwt352'
         database.stub(:[]).and_return insertable
-        fix = Sequel::Fixture.new :test, database, false
+        
+        fix = Sequel::Fixture.new :processed, database, false
+        
         fix.push
       end
       
@@ -402,24 +405,22 @@ describe Sequel::Fixture do
     
     context "a fixture with a field with alternatives yet missing the <processed> one" do
       before do
-        Fast.file.write "test/fixtures/test/users.yaml", "hey: { pass: { raw: There } }"
+        Sequel::Fixture.path = File.join(File.dirname(__FILE__), "fixtures")
       end
       
       it "should fail" do
         database = double 'database', :[] => stub( 'table', :count => 0, :truncate => nil  )
-        fix = Sequel::Fixture.new :test, database, false
-        expect { fix.push
-        }.to raise_error Sequel::Fixture::MissingProcessedValueError, 
-          "In record 'hey' to be inserted into 'users', the processed value of field 'pass' is missing, aborting"
+        fix = Sequel::Fixture.new :invalid, database, false
+        
+        expect { fix.push }.to raise_error Sequel::Fixture::MissingProcessedValueError
       end
       
       
       it "should call the rollback" do
         database = double 'database', :[] => stub( 'table', :count => 0, :truncate => nil )
-        fix = Sequel::Fixture.new :test, database, false
+        fix = Sequel::Fixture.new :invalid, database, false
         fix.should_receive :rollback
-        expect { fix.push
-        }.to raise_error Sequel::Fixture::MissingProcessedValueError
+        expect { fix.push }.to raise_error Sequel::Fixture::MissingProcessedValueError
       end      
       
       after do
@@ -428,55 +429,6 @@ describe Sequel::Fixture do
     end
   end
   
-  # This should go in a dependency, pending refactoring TODO
-  describe "#simplify" do
-    context "when receiving a multidimensional hash containing a field with raw and processed" do
-      it "should convert it in a simple hash using the processed value as replacement" do
-        base_hash = {
-          :name => "Jane",
-          :band => "Witherspoons",
-          :pass => {
-            :raw => "secret",
-            :processed => "53oih7fhjdgj3f8="
-          },
-          :email => {
-            :raw => "Jane@gmail.com ",
-            :processed => "jane@gmail.com"
-          }
-        }
-        
-        fix = Sequel::Fixture.new
-        simplified = fix.simplify base_hash
-        simplified.should == {
-          :name => "Jane",
-          :band => "Witherspoons",
-          :pass => "53oih7fhjdgj3f8=",
-          :email => "jane@gmail.com"
-        }
-      end
-    end
-    
-    context "the multidimensional array is missing the processed part of the field" do
-      it "should raise an exception" do
-        base_hash = {
-          :name => "Jane",
-          :pass => {
-            :raw => "secret",
-            :not_processed => "53oih7fhjdgj3f8="
-          },
-          :email => {
-            :raw => "Jane@gmail.com ",
-            :processed => "jane@gmail.com"
-          }
-        }
-        
-        fix = Sequel::Fixture.new
-        expect { fix.simplify base_hash
-        }.to raise_error Sequel::Fixture::MissingProcessedValueError, 
-          "The processed value to insert into the db is missing from the field 'pass', aborting"
-      end
-    end
-  end
   
   describe "#rollback" do
     it "should check" do

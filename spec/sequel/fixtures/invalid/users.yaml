@@ -1,0 +1,4 @@
+data:
+  - name: Hey
+    pass:
+      raw: secret
