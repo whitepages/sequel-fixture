@@ -1,6 +1,6 @@
 Sequel::Fixture
 ===============
-[![Build Status](https://secure.travis-ci.org/Fetcher/sequel-fixture.png)](http://travis-ci.org/Fetcher/sequel-fixture) [![Code Climate](https://codeclimate.com/badge.png)](https://codeclimate.com/github/Fetcher/sequel-fixture)
+[![Build Status](https://secure.travis-ci.org/whitepages/sequel-fixture.png)](http://travis-ci.org/whitepages/sequel-fixture) [![Code Climate](https://codeclimate.com/badge.png)](https://codeclimate.com/github/whitepages/sequel-fixture)
 
 Just like Rails fixtures, but for Sequel.
 
