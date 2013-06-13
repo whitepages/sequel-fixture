@@ -69,9 +69,11 @@ Sequel::Fixture.path = File.join(File.dirname(__FILE__), "fixtures")
 fixture = Sequel::Fixture.new :simple, DB # Will load all the data in the fixture into the database
 
 fixture.users               # == fixture[:users]
-fixture.users.john.name     # => "John"
+fixture.users[0].name     # => "John"
                             # The YAML files are parsed into a SymbolMatrix
                             # http://github.com/Fetcher/symbolmatrix
+                            # Each table contains an array of Rows.
+                            # Within each row the columns can be accessed by name (.name)
 
 fixture.rollback            # returns users and messages to pristine status ('TRUNCATE')
 
@@ -114,7 +116,7 @@ And then execute:
 
 ## License
 
-Copyright (C) 2012 Fetcher
+Copyright (C) 2012 Whitepages
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
