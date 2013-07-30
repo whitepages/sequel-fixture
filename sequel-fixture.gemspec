@@ -2,14 +2,14 @@
 require File.expand_path('../lib/sequel-fixture/version', __FILE__)
 
 Gem::Specification.new do |gem|
-  gem.authors       = ["Xavier Via"]
-  gem.email         = ["xavier.via.canel@gmail.com"]
+  gem.authors       = ["Sebastian Beresniewicz"]
+  gem.email         = ["sebastianb@whitepages.com"]
   gem.description   = %q{Flexible fixtures for the Sequel Gem inspired in Rails 2 fixtures}
   gem.summary       = %q{Flexible fixtures for the Sequel Gem inspired in Rails 2 fixtures}
-  gem.homepage      = "http://github.com/Fetcher/sequel-fixture"
+  gem.homepage      = "http://github.com/whitepages/sequel-fixture"
 
   gem.add_dependency "sequel"         # Stating the obvious
-  gem.add_dependency "symbolmatrix"   # Because they have to be easy to use, dammit!
+  gem.add_dependency "symbolmatrix"   # Because its easy to use
   gem.add_dependency "fast"           # Fast was needed. This is a testing gem, there's no problem with extra load
 
   gem.add_development_dependency "rspec"

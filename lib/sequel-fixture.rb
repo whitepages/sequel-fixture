@@ -102,11 +102,6 @@ class Sequel::Fixture
     raise MissingFixtureError, "No fixture has been loaded, nothing to check" unless @data.length > 0
     raise MissingConnectionError, "No connection has been provided, impossible to check" unless @connection
     
-    @data.each_key do |table|
-      if @connection[table].count != 0
-        raise TablesNotEmptyError, "Table '#{table}' is not empty, tables must be empty prior to testing"
-      end
-    end
     return @checked = true
   end
 

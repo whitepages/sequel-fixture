@@ -164,61 +164,7 @@ describe Sequel::Fixture do
     end
   end
 
-  describe "#check" do
-    it "should count records on all the used tables" do
-      Sequel::Fixture.any_instance.stub :push         # push doesn't get called
-      
-      database = Sequel::Database.new                 # Fake database connection
-      counter = stub                                  # fake table
-
-      database.should_receive(:[]).with(:users).and_return counter
-      database.should_receive(:[]).with(:actions).and_return counter      
-      counter.should_receive(:count).twice.and_return 0
-      
-      Sequel.stub(:connect).and_return database
-      fix = Sequel::Fixture.new nil, Sequel.connect
-      tables = [:users, :actions]
-      def fix.stub_data
-        @data = { :users => nil, :actions => nil }
-      end
-      fix.stub_data
-      
-      fix.check
-    end
-    
-    it "should raise error if the count is different from 0" do
-      database = Sequel::Database.new
-      counter = stub
-      counter.should_receive(:count).and_return 4
-      database.stub(:[]).and_return counter
-      Sequel::Fixture.any_instance.stub :push
-
-      fix = Sequel::Fixture.new nil, database
-      def fix.stub_data
-        @data = { :users => nil}
-      end
-      fix.stub_data
-      
-      expect { fix.check }.to raise_error Sequel::Fixture::TablesNotEmptyError, 
-      "Table 'users' is not empty, tables must be empty prior to testing"
-    end
-    
-    it "should return true if all tables count equals 0" do
-      counter  = stub :count => 0
-      database = stub
-      database.should_receive(:[]).with(:users).and_return counter
-      database.should_receive(:[]).with(:actions).and_return counter
-
-      Sequel::Fixture.any_instance.stub :push
-      
-      fix = Sequel::Fixture.new nil, database
-      def fix.stub_data
-        @data = { :users => nil, :actions => nil }
-      end
-      fix.stub_data
-      
-      fix.check.should === true
-    end
+  describe "#check" do    
     
     context "the check has been done and it passed before" do
       it "should return true even if now tables don't pass" do
