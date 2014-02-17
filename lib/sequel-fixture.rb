@@ -1,7 +1,5 @@
 require "sequel"
 require "symbolmatrix"
-require "fast"
-
 require "sequel-fixture/version"
 require "sequel-fixture/exceptions"
 require "sequel-fixture/util"
@@ -47,7 +45,10 @@ class Sequel::Fixture
   def load(fixture)
     raise LoadingFixtureIllegal, "A check has already been made, loading a different fixture is illegal" if @checked
     
-    Fast.dir("#{fixtures_path}/#{fixture}").files.to.symbols.each do |file|
+    Dir["#{fixtures_path}/#{fixture}/*.yaml"].each do |f|
+    
+      file = File.basename(f,".yaml").to_sym
+      
       @data ||= {}
       @schema ||= {}
 
