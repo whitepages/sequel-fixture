@@ -1,8 +1,5 @@
 require "sequel"
 require "symbolmatrix"
-#require "fast/fast"
-
-require 'pry'
 require "sequel-fixture/version"
 require "sequel-fixture/exceptions"
 require "sequel-fixture/util"
