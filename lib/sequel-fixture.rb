@@ -120,10 +120,10 @@ class Sequel::Fixture
     @data.each do |table_name, table_data|
       table_data.rows.each do |values|
         begin
-          @connection[table_name].insert(simplify(values.to_h))
+          @connection[table_name].insert(simplify(values))
         rescue MissingProcessedValueError => m
           rollback
-          raise MissingProcessedValueError, "In record '#{values.to_h}' to be inserted into '#{table_name}', the processed value of field '#{m.field}' is missing, aborting."
+          raise MissingProcessedValueError, "In record '#{values}' to be inserted into '#{table_name}', the processed value of field '#{m.field}' is missing, aborting."
         rescue NoMethodError => e
           raise IllegalFixtureFormat, "In record '#{values}', data must be formatted as arrays of hashes. Check 'data' section in '#{table_name}.yaml'"
         end
