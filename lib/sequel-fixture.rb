@@ -60,7 +60,6 @@ class Sequel::Fixture
       @schema ||= {}
 
       file_data = SymbolMatrix.new file
-      # require 'pry'; binding.pry
 
       if file_data
         @data[tablename] = Table.new(file_data[:data]) if file_data.key?(:data)
