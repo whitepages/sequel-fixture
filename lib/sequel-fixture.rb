@@ -10,7 +10,7 @@ require "sequel-fixture/table"
 module Sequel; end
 
 class Sequel::Fixture
-  
+
   # === Description
   # Returns the current path to the fixtures folder
   #
@@ -18,49 +18,57 @@ class Sequel::Fixture
     @@path ||= "test/fixtures"
   end
 
-  
+
   # === Description
   # Set the current path of the fixtures folder
   #
   def self.path=(path)
     @@path = path
   end
-  
+
   # === Description
   # Initializes the fixture handler
-  # Accepts optionally a symbol as a reference to the fixture
+  # Accepts optionally a symbol as a reference to the fixture, or a path to an individual fixture
   # and a Sequel::Database connection
   def initialize(fixture = nil, connection = nil, option_push = true)
     @schema = {}
     @data = {}
-    
+
     load(fixture) if fixture
-    
+
     @connection = connection if connection
     push if fixture && connection && option_push
   end
 
-  
+
   # === Description
-  # Loads the fixture files into this instance
+  # Loads the fixture files or individual fixture into this instance
   #
   def load(fixture)
     raise LoadingFixtureIllegal, "A check has already been made, loading a different fixture is illegal" if @checked
-    
-    Fast.dir("#{fixtures_path}/#{fixture}").files.to.symbols.each do |file|
+    fixture_files = if fixture.is_a? Array
+      fixture.map { |f| "#{fixtures_path}/#{f}" }
+    elsif Fast.dir? "#{fixtures_path}/#{fixture}"
+      Fast.dir("#{fixtures_path}/#{fixture}").files.to.symbols.map { |f| "#{fixtures_path}/#{fixture}/#{f}.yaml" }
+    else
+      ["#{fixtures_path}/#{fixture}"]
+    end
+
+    fixture_files.each do |file|
+      tablename = file[/([^\/]+).ya?ml$/, 1].to_sym
       @data ||= {}
       @schema ||= {}
 
-      file_data = SymbolMatrix.new "#{fixtures_path}/#{fixture}/#{file}.yaml"
+      file_data = SymbolMatrix.new file
 
       if file_data
-        @data[file] = Table.new(file_data[:data]) if file_data.key?(:data)
-        @schema[file] = file_data[:schema] if file_data.key?(:schema)
+        @data[tablename] = Table.new(file_data[:data]) if file_data.key?(:data)
+        @schema[tablename] = file_data[:schema] if file_data.key?(:schema)
       end
     end
   end
 
-  
+
   # === Description
   # Returns the current fixtures path where Sequel::Fixture looks for fixture folders
   #
@@ -75,16 +83,16 @@ class Sequel::Fixture
   def method_missing(key, *args)
     return @data[key] if @data && @data.has_key?(key)
     return super
-  end    
-  
+  end
+
   # === Description
   # Returns the SymbolMatrix with the data referring to that table
   #
   def [](reference)
     @data[reference]
   end
-  
-  
+
+
   # === Description
   # Forces the check to pass. Dangerous!
   #
@@ -92,7 +100,7 @@ class Sequel::Fixture
     @checked = true
   end
 
-  
+
   # === Description
   # Assures that the tables are empty before proceeding
   #
@@ -101,11 +109,11 @@ class Sequel::Fixture
 
     raise MissingFixtureError, "No fixture has been loaded, nothing to check" unless @data.length > 0
     raise MissingConnectionError, "No connection has been provided, impossible to check" unless @connection
-    
+
     return @checked = true
   end
 
-  
+
   # === Description
   # Initializes fixture schema and Inserts the fixture data into the corresponding
   # tables
@@ -116,7 +124,7 @@ class Sequel::Fixture
     @schema.each do |table, matrix|
       push_schema(table, matrix)
     end
-    
+
     @data.each do |table_name, table_data|
       table_data.rows.each do |values|
         begin
@@ -131,10 +139,10 @@ class Sequel::Fixture
     end
   end
 
-  
-  # === Description 
+
+  # === Description
   # Create the schema in our DB connection based on the schema values
-  #  
+  #
   def push_schema(table, values)
     ## Lets passively ignore the schema if the table already exists
     return if @connection.table_exists?(table.to_sym)
@@ -144,7 +152,7 @@ class Sequel::Fixture
     values.each do |column_def|
       pkey_data = column_def if column_def["primary_key"]
     end
-    
+
     ## Create the table with the primary key
     @connection.create_table(table) do
       column(pkey_data["name"].to_sym, pkey_data["type"].to_sym)
@@ -157,15 +165,15 @@ class Sequel::Fixture
       end
     end
   end
-  
-  
+
+
   # === Description
   # Empties the tables, only if they were empty to begin with
   #
   def rollback
     begin
       check
-      
+
       @data.each_key do |table|
         @connection[table].truncate
       end
@@ -174,7 +182,7 @@ class Sequel::Fixture
     end
   end
 
-  
+
   # === Description
   # Sets the connection. Raises an ChangingConnectionIllegal exception if this fixture has
   # already been checked
@@ -188,5 +196,5 @@ class Sequel::Fixture
 
   attr_reader :connection
   attr_reader :data
-  attr_reader :schema  
+  attr_reader :schema
 end
