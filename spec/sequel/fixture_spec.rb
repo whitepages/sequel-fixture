@@ -2,47 +2,47 @@ require "sequel-fixture"
 require "fast"
 
 describe Sequel::Fixture do
-  describe ".path" do    
-    it "should return 'test/fixtures'" do
-      Sequel::Fixture.path.should == "test/fixtures"
+  describe ".path" do
+    it "returns 'test/fixtures'" do
+      expect(Sequel::Fixture.path).to eq "test/fixtures"
     end
 
-    it "should be configurable" do
+    it "is configurable" do
       Sequel::Fixture.path = File.join(File.dirname(__FILE__), "fixtures")
-      Sequel::Fixture.path.should == File.join(File.dirname(__FILE__), "fixtures")
-    end    
+      expect(Sequel::Fixture.path).to eq File.join(File.dirname(__FILE__), "fixtures")
+    end
   end
 
   describe ".new" do
     context "a symbol is sent representing a fixture" do
-      it "should call load_fixture" do  
-        Sequel::Fixture.any_instance.should_receive(:load).with :test
+      it "calls load_fixture" do
+        expect_any_instance_of(Sequel::Fixture).to receive(:load).with :test
         Sequel::Fixture.new :test
       end
     end
 
     context "a database connection is passed" do
-      it "should call push" do
-        Sequel.stub(:connect).and_return Sequel::Database.new
-        Sequel::Fixture.any_instance.stub :load
-        Sequel::Fixture.any_instance.should_receive :push
+      it "calls push" do
+        allow(Sequel).to receive(:connect).and_return Sequel::Database.new
+        allow_any_instance_of(Sequel::Fixture).to receive :load
+        expect_any_instance_of(Sequel::Fixture).to receive :push
         Sequel::Fixture.new :test, Sequel.connect
       end
-    end    
-    
+    end
+
     context "a database is provided but no fixture" do
-      it "should not call push" do
+      it "does not call push" do
         database = double 'database'
-        Sequel::Fixture.any_instance.should_not_receive :push
+        expect_any_instance_of(Sequel::Fixture).to_not receive :push
         Sequel::Fixture.new nil, database
       end
     end
-    
+
     context "a database connection and a valid fixture are passed but a false flag is passed at the end" do
-      it "should not push" do
+      it "does not push" do
         database = double 'database'
-        Sequel::Fixture.any_instance.stub :load
-        Sequel::Fixture.any_instance.should_not_receive :push
+        allow_any_instance_of(Sequel::Fixture).to receive :load
+        expect_any_instance_of(Sequel::Fixture).to_not receive :push
         Sequel::Fixture.new :test, database, false
       end
     end
@@ -56,173 +56,173 @@ describe Sequel::Fixture do
         Fast.file! "test/fixtures/test/actions.yaml"
       end
 
-      it "should load the fixture YAML files using SymbolMatrix (third-party)" do
+      it "loads the fixture YAML files using SymbolMatrix (third-party)" do
         fix = Sequel::Fixture.new
-        fix.stub :check
-        SymbolMatrix.should_receive(:new).with "test/fixtures/test/users.yaml"
-        SymbolMatrix.should_receive(:new).with "test/fixtures/test/actions.yaml"
+        allow(fix).to receive :check
+        expect(SymbolMatrix).to receive(:new).with "test/fixtures/test/users.yaml"
+        expect(SymbolMatrix).to receive(:new).with "test/fixtures/test/actions.yaml"
         fix.load :test
       end
-            
+
       after do
         Fast.dir.remove! :test
       end
     end
-    
+
     context "the check has been performed and I attempt to load another fixture" do
       before do
         Sequel::Fixture.path = File.join(File.dirname(__FILE__), "fixtures")
       end
 
-      it "should fail" do
-        Sequel::Fixture.any_instance.stub :push
+      it "fails" do
+        allow_any_instance_of(Sequel::Fixture).to receive :push
         database = double 'database'
-        database.stub(:[]).and_return double(:count => 0 )
+        allow(database).to receive(:[]).and_return double(:count => 0 )
         fix = Sequel::Fixture.new :test, database
         fix.check
         expect { fix.load :another
-        }.to raise_error Sequel::Fixture::LoadingFixtureIllegal, 
+        }.to raise_error Sequel::Fixture::LoadingFixtureIllegal,
           "A check has already been made, loading a different fixture is illegal"
       end
-      
+
       after do
         Fast.dir.remove! :test
       end
     end
   end
-  
+
   describe "#force_checked!" do
-    it "check should return true and should not call [] in the passed database" do
-      database = stub 'database'
-      database.should_not_receive :[]
-      
-      Sequel::Fixture.any_instance.stub :load
+    it "check returns true and does not call [] in the passed database" do
+      database = double 'database'
+      expect(database).to_not receive :[]
+
+      allow_any_instance_of(Sequel::Fixture).to receive :load
       fix = Sequel::Fixture.new :anything, database, false
-      fix.force_checked!.should === true
-      fix.check.should === true
+      expect(fix.force_checked!).to eq true
+      expect(fix.check).to be_truthy
     end
   end
-  
+
   describe "#[]" do
     context "a valid fixture has been loaded" do
       before do
         Sequel::Fixture.path = File.join(File.dirname(__FILE__), "fixtures")
-        
+
         @fix = Sequel::Fixture.new
-        @fix.stub :check
+        allow(@fix).to receive :check
         @fix.load :test
       end
-      
+
       context "a table key is passed" do
-        it "should return the Fixture::Table containing the same info as in the matching YAML file" do
-          @fix[:users].should be_a Sequel::Fixture::Table
-          @fix[:users][0].name.should == "John Doe"
-          @fix[:users][0].last_name.should == "Wayne"          
-          @fix[:actions][0].action.should == "Walks"
+        it "returns the Fixture::Table containing the same info as in the matching YAML file" do
+          expect(@fix[:users]).to be_a Sequel::Fixture::Table
+          expect(@fix[:users][0].name).to eq "John Doe"
+          expect(@fix[:users][0].last_name).to eq "Wayne"
+          expect(@fix[:actions][0].action).to eq "Walks"
         end
       end
-      
+
       after do
         Fast.dir.remove! :test
       end
-    end    
+    end
   end
-  
+
   describe "#method_missing" do
     context "a valid fixture has been loaded" do
       context "a table key is passed" do
         before do
           Sequel::Fixture.path = File.join(File.dirname(__FILE__), "fixtures")
           @fix = Sequel::Fixture.new
-          @fix.stub :check
+          allow(@fix).to receive :check
           @fix.load :test
         end
-      
-        it "should return the SymbolMatrix containing the same info as in the matching YAML file" do
-          @fix.users.should be_a Sequel::Fixture::Table
-          @fix.users[0].name.should == "John Doe"
-          @fix.users[0].last_name.should == "Wayne"
-          @fix.actions[0].action.should == "Walks"          
+
+        it "returns the SymbolMatrix containing the same info as in the matching YAML file" do
+          expect(@fix.users).to be_a Sequel::Fixture::Table
+          expect(@fix.users[0].name).to eq "John Doe"
+          expect(@fix.users[0].last_name).to eq "Wayne"
+          expect(@fix.actions[0].action).to eq "Walks"
         end
 
         after do
           Fast.dir.remove! :test
         end
       end
-    end    
-    
-    it "should raise no method error if matches nothing" do
+    end
+
+    it "raises no method error if matches nothing" do
       expect { Sequel::Fixture.new.nothing = "hola"
       }.to raise_error NoMethodError
     end
   end
-  
+
   describe "#fixtures_path" do
-    it "should call Sequel::Fixture.path" do
-      Sequel::Fixture.should_receive :path
+    it "calls Sequel::Fixture.path" do
+      expect(Sequel::Fixture).to receive :path
       Sequel::Fixture.new.fixtures_path
     end
   end
 
-  describe "#check" do    
-    
+  describe "#check" do
+
     context "the check has been done and it passed before" do
-      it "should return true even if now tables don't pass" do
-        Sequel::Fixture.any_instance.stub :push
-        
+      it "returns true even if now tables don't pass" do
+        allow_any_instance_of(Sequel::Fixture).to receive :push
+
         @counter = double 'counter'
-        @counter.stub :count do
+        allow(@counter).to receive :count do
           @amount ||= 0
           @amount += 1
           0 unless @amount > 5
         end
-        
+
         @database = double 'database'
-        @database.stub(:[]).and_return @counter
+        allow(@database).to receive(:[]).and_return @counter
 
         @fix = Sequel::Fixture.new nil, @database
         def @fix.stub_data
           @data = { :users => nil, :tables => nil, :actions => nil, :schemas => nil }
         end
         @fix.stub_data
-        @fix.check.should === true
-        @fix.check.should === true  # This looks confusing: let explain. The #count method as defined for the mock
-                                    # runs 4 times in the first check. In the second check, it runs 4 times again.
-                                    # After time 6 it returns a large amount, making the check fail.
-                                    # Of course, the fourth time is never reached since the second check is skipped
+        expect(@fix.check).to be_truthy
+        expect(@fix.check).to be_truthy # This looks confusing: let's explain. The #count method as defined for the mock
+                                        # runs 4 times in the first check. In the second check, it runs 4 times again.
+                                        # After time 6 it returns a large amount, making the check fail.
+                                        # Of course, the fourth time is never reached since the second check is skipped
       end
     end
-    
+
     context "no fixture has been loaded" do
-      it "should fail with a missing fixture exception" do
+      it "fails with a missing fixture exception" do
         fix = Sequel::Fixture.new
         expect { fix.check
         }.to raise_error Sequel::Fixture::MissingFixtureError,
           "No fixture has been loaded, nothing to check"
       end
     end
-    
+
     context "a valid fixture has been loaded but no connection has been provided" do
       before do
         Fast.file.write "test/fixtures/test/users.yaml", "jane { name: Jane Doe }"
       end
-      it "should fail with a missing database connection exception" do
+      it "fails with a missing database connection exception" do
         fix = Sequel::Fixture.new :test
         expect { fix.check
-        }.to raise_error Sequel::Fixture::MissingConnectionError, 
+        }.to raise_error Sequel::Fixture::MissingConnectionError,
           "No connection has been provided, impossible to check"
       end
-      
+
       after do
         Fast.dir.remove! :test
       end
     end
-    
+
     context "a database is provided but no fixture" do
-      it "should fail with a missing fixture exception" do
+      it "fails with a missing fixture exception" do
         database = double 'database'
         fix = Sequel::Fixture.new nil, database
-        expect {fix.check 
+        expect {fix.check
         }.to raise_error Sequel::Fixture::MissingFixtureError,
           "No fixture has been loaded, nothing to check"
       end
@@ -230,192 +230,192 @@ describe Sequel::Fixture do
   end
 
   describe "#connection" do
-    it "should return the Sequel connection passed as argument to the constructor" do
-      Sequel::Fixture.any_instance.stub :push
-      connection = stub
+    it "returns the Sequel connection passed as argument to the constructor" do
+      allow_any_instance_of(Sequel::Fixture).to receive :push
+      connection = double
       fix = Sequel::Fixture.new nil, connection
-      fix.connection.should === connection
+      expect(fix.connection).to eq connection
     end
   end
-  
+
   describe "#connection=" do
     it "sets the connection" do
       fix = Sequel::Fixture.new
-      connection = stub
+      connection = double
       fix.connection = connection
-      fix.connection.should === connection
+      expect(fix.connection).to eq connection
     end
-    
+
     context "a check has been performed and I attempt to change the connection" do
       before do
         Fast.file.write "test/fixtures/test/users.yaml", "jane { name: Secret }"
       end
-      
-      it "should fail" do
+
+      it "fails" do
         database = double 'database'
-        database.stub(:[]).and_return mock(:count => 0)
-        Sequel::Fixture.any_instance.stub :push
+        allow(database).to receive(:[]).and_return double(:count => 0)
+        allow_any_instance_of(Sequel::Fixture).to receive :push
         fix = Sequel::Fixture.new :test, database
         fix.check
         expect { fix.connection = double 'database'
-        }.to raise_error Sequel::Fixture::ChangingConnectionIllegal, 
+        }.to raise_error Sequel::Fixture::ChangingConnectionIllegal,
           "Illegal to change connection after check has already been performed"
       end
-      
+
       after do
         Fast.dir.remove! :test
       end
     end
   end
-  
+
   describe "#data" do
     context "a fixture has been loaded" do
       before do
         Sequel::Fixture.path = File.join(File.dirname(__FILE__), "fixtures")
       end
-      
-      it "should return the fixture data" do
+
+      it "returns the fixture data" do
         fix = Sequel::Fixture.new :test
-        fix.data.should have_key :users
-        fix.data[:users].should be_a Sequel::Fixture::Table
+        expect(fix.data).to have_key :users
+        expect(fix.data[:users]).to be_a Sequel::Fixture::Table
       end
-      
+
       after do
         Fast.dir.remove! :test
       end
     end
-    
+
     context "no fixture has been loaded" do
-      it "should return nil" do
-        fix = Sequel::Fixture.new 
-        fix.data.should be {}
+      it "returns nil" do
+        fix = Sequel::Fixture.new
+        expect(fix.data).to be {}
       end
     end
   end
-  
+
   describe "#push" do
-    it "should call #check" do
+    it "calls #check" do
       fix = Sequel::Fixture.new
       def fix.stub_data
         @data = {}
       end
       fix.stub_data
-      fix.should_receive :check
+      expect(fix).to receive :check
       fix.push
     end
 
     context "a valid fixture and a database connection are provided" do
       before do
         Sequel::Fixture.path = File.join(File.dirname(__FILE__), "fixtures")
-        
-        @table    = stub
-        @database = stub :[] => @table
+
+        @table    = double
+        @database = double :[] => @table
         @fix = Sequel::Fixture.new
         @fix.load :test
         @fix.connection = @database
       end
-    
-      it "should attempt to insert the data into the database" do
-        @table.stub :count => 0
-        @table.should_receive(:insert).with "name" => "John Doe", "last_name" => "Wayne"
-        @table.should_receive(:insert).with "user_id" => 1, "action" => "Walks"
+
+      it "attempts to insert the data into the database" do
+        allow(@table).to receive(:count).and_return(0)
+        expect(@table).to receive(:insert).with "name" => "John Doe", "last_name" => "Wayne"
+        expect(@table).to receive(:insert).with "user_id" => 1, "action" => "Walks"
         @fix.push
       end
-      
-      after do
-        Fast.dir.remove! :test
-      end
-    end    
-    
-    context "a fixture with a field with a <raw> and a <processed> alternative" do
-      before do
-        Sequel::Fixture.path = File.join(File.dirname(__FILE__), "fixtures")        
-      end
-      
-      it "should insert the <processed> alternative" do
-        database = double 'database'
-        insertable = double 'table'
-        insertable.stub :count => 0
-        insertable.should_receive(:insert).with "password" => '35ferwt352'
-        database.stub(:[]).and_return insertable
-        
-        fix = Sequel::Fixture.new :processed, database, false
-        
-        fix.push
-      end
-      
+
       after do
         Fast.dir.remove! :test
       end
     end
-    
+
+    context "a fixture with a field with a <raw> and a <processed> alternative" do
+      before do
+        Sequel::Fixture.path = File.join(File.dirname(__FILE__), "fixtures")
+      end
+
+      it "inserts the <processed> alternative" do
+        database = double 'database'
+        insertable = double 'table'
+        allow(insertable).to receive(:count).and_return(0)
+        expect(insertable).to receive(:insert).with "password" => '35ferwt352'
+        allow(database).to receive(:[]).and_return insertable
+
+        fix = Sequel::Fixture.new :processed, database, false
+
+        fix.push
+      end
+
+      after do
+        Fast.dir.remove! :test
+      end
+    end
+
     context "a fixture with a field with alternatives yet missing the <processed> one" do
       before do
         Sequel::Fixture.path = File.join(File.dirname(__FILE__), "fixtures")
       end
-      
-      it "should fail" do
-        database = double 'database', :[] => stub( 'table', :count => 0, :truncate => nil  )
+
+      it "fails" do
+        database = double 'database', :[] => double( 'table', :count => 0, :truncate => nil  )
         fix = Sequel::Fixture.new :invalid, database, false
-        
+
         expect { fix.push }.to raise_error Sequel::Fixture::MissingProcessedValueError
       end
-      
-      
-      it "should call the rollback" do
-        database = double 'database', :[] => stub( 'table', :count => 0, :truncate => nil )
+
+
+      it "calls the rollback" do
+        database = double 'database', :[] => double( 'table', :count => 0, :truncate => nil )
         fix = Sequel::Fixture.new :invalid, database, false
-        fix.should_receive :rollback
+        expect(fix).to receive :rollback
         expect { fix.push }.to raise_error Sequel::Fixture::MissingProcessedValueError
-      end      
-      
+      end
+
       after do
         Fast.dir.remove! :test
       end
     end
   end
-  
-  
+
+
   describe "#rollback" do
-    it "should check" do
+    it "checks" do
       fix = Sequel::Fixture.new
       def fix.stub_data
         @data = {}
       end
       fix.stub_data
-      fix.should_receive :check
+      expect(fix).to receive :check
       fix.rollback
     end
-    
+
     context "the check is failing" do
-      it "should raise a custom error for the rollback" do
+      it "raises a custom error for the rollback" do
         fix = Sequel::Fixture.new
-        fix.stub(:check).and_raise Sequel::Fixture::TablesNotEmptyError
+        allow(fix).to receive(:check).and_raise Sequel::Fixture::TablesNotEmptyError
         expect { fix.rollback
-        }.to raise_error Sequel::Fixture::RollbackIllegalError, 
+        }.to raise_error Sequel::Fixture::RollbackIllegalError,
           "The tables weren't empty to begin with, rollback aborted."
       end
     end
-    
-    context "a check has been done and is passing" do    
-      before do 
-        @database = stub
-        @truncable = stub
-        @truncable.stub :count => 0
-        @database.stub(:[]).and_return @truncable
-        
+
+    context "a check has been done and is passing" do
+      before do
+        @database = double
+        @truncable = double
+        allow(@truncable).to receive(:count).and_return(0)
+        allow(@database).to receive(:[]).and_return @truncable
+
         @fix = Sequel::Fixture.new
         @fix.connection = @database
         def @fix.stub_data
           @data = { :users => nil, :actions => nil, :extras => nil }
         end
         @fix.stub_data
-        
-        @fix.check.should === true
+
+        expect(@fix.check).to be_truthy
       end
-      
-      it "should call truncate on each of the used tables" do
-        @truncable.should_receive(:truncate).exactly(3).times
+
+      it "calls truncate on each of the used tables" do
+        expect(@truncable).to receive(:truncate).exactly(3).times
         @fix.rollback
       end
     end
