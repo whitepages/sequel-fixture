@@ -50,22 +50,46 @@ describe Sequel::Fixture do
 
   describe "#load" do
     context "there is a valid fixture folder setup" do
-      before do
-        Sequel::Fixture.path = "test/fixtures"
-        Fast.file! "test/fixtures/test/users.yaml"
-        Fast.file! "test/fixtures/test/actions.yaml"
+      shared_examples_for "valid fixture folder setup" do
+
+        around do |example|
+          Sequel::Fixture.path = "test/fixtures"
+          Fast.file! file1
+          Fast.file! file2
+
+          example.run
+
+          Fast.dir.remove! :test
+        end
+
+        it "loads the fixture YAML files using SymbolMatrix (third-party)" do
+          fix = Sequel::Fixture.new
+          allow(fix).to receive :check
+          expect(SymbolMatrix).to receive(:new).with file1
+          expect(SymbolMatrix).to receive(:new).with file2
+          fix.load :test
+        end
       end
 
-      it "loads the fixture YAML files using SymbolMatrix (third-party)" do
-        fix = Sequel::Fixture.new
-        allow(fix).to receive :check
-        expect(SymbolMatrix).to receive(:new).with "test/fixtures/test/users.yaml"
-        expect(SymbolMatrix).to receive(:new).with "test/fixtures/test/actions.yaml"
-        fix.load :test
+      context "with files having a .yaml extension" do
+        let(:file1) { "test/fixtures/test/users.yaml" }
+        let(:file2) { "test/fixtures/test/actions.yaml" }
+
+        it_behaves_like "valid fixture folder setup"
       end
 
-      after do
-        Fast.dir.remove! :test
+      context "with files having a .yml extension" do
+        let(:file1) { "test/fixtures/test/users.yml" }
+        let(:file2) { "test/fixtures/test/actions.yml" }
+
+        it_behaves_like "valid fixture folder setup"
+      end
+
+      context "with files having a .erb extension" do
+        let(:file1) { "test/fixtures/test/users.yml.erb" }
+        let(:file2) { "test/fixtures/test/actions.yml.erb" }
+
+        it_behaves_like "valid fixture folder setup"
       end
     end
 
